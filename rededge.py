@@ -8,7 +8,13 @@ from pprint import pprint
 import argparse
 from tqdm import tqdm
 
+
 #%% API Access Functions
+def build_url(host='192.168.10.254', set=0, dir=0):
+    url = 'https://' + host + '/files' + '/{:04d}SET'.format(set) + '/{:03d}'.format(dir)
+    return url
+
+
 def process_response(url):
     resp = requests.get(url)
     if resp.status_code != 200:
@@ -21,15 +27,15 @@ def get_sets(host):
     data = resp.json()
     return data['directories']
     
-def get_file_list(host, set):
-    url = 'http://' + host + '/files' + '/{:04d}SET'.format(set) + '/000'
+def get_file_list(host, set, dir):
+    url = 'http://' + host + '/files' + '/{:04d}SET'.format(set) + '/{:03d}'.format(dir)
     resp = process_response(url)
     data = resp.json()
     file_list = [ x['name'] for x in data['files'] ]
     return file_list
 
-def download_set_file(host, set, filename, output_path):
-    url = 'http://' + host + '/files' + '/{:04d}SET'.format(set) + '/000' + '/' + filename
+def download_set_file(host, set, dir, filename, output_path):
+    url = 'http://' + host + '/files' + '/{:04d}SET'.format(set) + '/{:03d}'.format(dir) + '/' + filename
     resp = process_response(url)
     with open(os.path.join(output_path, filename), 'wb') as f:
         f.write(resp.content)
@@ -53,12 +59,18 @@ def parse_arguments():
     getcmd.add_argument("--set", required=False, type=int,
                     help="Set of images")
 
+    getcmd.add_argument("--dir", required=False, type=int,
+                    help="Dir of images")
+
     downcmd = subparsers.add_parser('download', help='Download images')
 
     downcmd.add_argument("--output-path", required=True,
                       help="Path to a folder where to save images")
     downcmd.add_argument("--set", required=True, type=int,
                       help="Set of images")
+
+    downcmd.add_argument("--dir", required=False, type=int,
+                    help="Dir of images")
     return parser.parse_args()
 
 # %% 
@@ -70,16 +82,16 @@ if __name__ == "__main__":
             _print_list(get_sets(host))
         elif args.asset == 'setfiles':
             if args.set is not None:
-                _print_list(get_file_list(host, args.set))
+                _print_list(get_file_list(host, args.set, args.dir))
             else:
                 raise AssertionError('No set given')
     elif args.command == 'download':
         output_path = args.output_path
         if not os.path.exists(output_path):
             os.makedirs(output_path)
-        file_list = get_file_list(host, args.set)
+        file_list = get_file_list(host, args.set, args.dir)
         for f in tqdm(file_list):
-            download_set_file(host, args.set, f, output_path)
+            download_set_file(host, args.set, args.dir, f, output_path)
         print("All files have been downloaded")
         
 # %%
